@@ -1,0 +1,25 @@
+# Tạo thêm Service Stable riêng cho Prod
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-canary-demo-stable
+spec:
+  ports:
+    - port: 80
+      targetPort: 3000
+      name: http
+  selector:
+    app: prometheus-canary-demo
+---
+# Tạo thêm Service Canary riêng cho Prod
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-canary-demo-canary
+spec:
+  ports:
+    - port: 80
+      targetPort: 3000
+      name: http
+  selector:
+    app: prometheus-canary-demo
