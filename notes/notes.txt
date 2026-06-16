@@ -85,3 +85,5 @@ Chỉ có duy nhất cụm Kubernetes chạy Controller chứa Private Key mới
 - AlertmanagerConfig
 
 7. Làm sao cái alerts.yaml và kube-prometheus-stack.yaml, nhận diện được nhau ?
+
+8. Pull Request và git merge có gì khác nhau ?
