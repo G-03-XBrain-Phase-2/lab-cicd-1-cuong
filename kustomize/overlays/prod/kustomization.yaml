@@ -7,11 +7,11 @@ resources:
 - alerts.yaml
 - sealed-secret.yaml
 configMapGenerator:
-  - name: app-config
-    behavior: create
-    literals:
-      - VERSION="prod-1.0.0"
-      - ENVIRONMENT="production"
+- behavior: create
+  literals:
+  - VERSION="prod-1.0.0"
+  - ENVIRONMENT="production"
+  name: app-config
 generatorOptions:
   disableNameSuffixHash: true
 patches:
@@ -19,4 +19,4 @@ patches:
 images:
 - name: prometheus-canary-demo-placeholder
   newName: manhcuong139/prometheus-canary-demo
-  newTag: 06fa47bbde963fa998bfbfb12bcceb1deddfff74
+  newTag: b1e237421cb1ed91b230d98e5a2457249b32a96e
