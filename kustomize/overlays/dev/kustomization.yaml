@@ -1,15 +1,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../base
+- ../../base
+- secret.yaml
 # Tự động sinh ConfigMap cho Dev
 configMapGenerator:
-  - name: app-config
-    behavior: create
-    literals:
-      - VERSION="dev-1.0.0"
-      - ENVIRONMENT="dev"
+- behavior: create
+  literals:
+  - VERSION="dev-1.0.0"
+  - ENVIRONMENT="dev"
+  name: app-config
 generatorOptions:
-  disableNameHash: true
+  disableNameSuffixHash: true
 patches:
-  - path: patches.yaml
+- path: patches.yaml
+images:
+- name: prometheus-canary-demo-placeholder
+  newName: manhcuong139/prometheus-canary-demo
+  newTag: 9c8e9e7db1ac6dfedab44b0b7cbde3beede3d44f
