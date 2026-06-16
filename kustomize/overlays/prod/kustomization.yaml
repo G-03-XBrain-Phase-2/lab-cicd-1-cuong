@@ -19,4 +19,4 @@ patches:
 images:
 - name: prometheus-canary-demo-placeholder
   newName: manhcuong139/prometheus-canary-demo
-  newTag: b1e237421cb1ed91b230d98e5a2457249b32a96e
+  newTag: ceaab3f637bdae508e8af96e0b7b3eb64fdff476
