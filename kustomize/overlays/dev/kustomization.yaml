@@ -4,11 +4,11 @@ resources:
 - ../../base
 # Tự động sinh ConfigMap cho Dev
 configMapGenerator:
-  - name: app-config
-    behavior: create
-    literals:
-      - VERSION="dev-1.0.0"
-      - ENVIRONMENT="dev"
+- behavior: create
+  literals:
+  - VERSION="dev-1.0.0"
+  - ENVIRONMENT="dev"
+  name: app-config
 generatorOptions:
   disableNameSuffixHash: true
 patches:
@@ -16,4 +16,4 @@ patches:
 images:
 - name: prometheus-canary-demo-placeholder
   newName: manhcuong139/prometheus-canary-demo
-  newTag: 06fa47bbde963fa998bfbfb12bcceb1deddfff74
+  newTag: 1057d0c0db9d65a35b0442c47def8c23af3b549c
