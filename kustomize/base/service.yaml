@@ -2,6 +2,8 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-canary-demo
+  labels:
+    app: prometheus-canary-demo
 spec:
   ports:
     - port: 80

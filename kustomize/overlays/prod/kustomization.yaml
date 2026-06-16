@@ -6,6 +6,7 @@ resources:
 - analysis.yaml
 - alerts.yaml
 - sealed-secret.yaml
+- servicemonitor.yaml
 configMapGenerator:
 - behavior: create
   literals:
