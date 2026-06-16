@@ -5,7 +5,5 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    canary: null # Xóa cấu hình Canary
-    rollingUpdate:
-      maxSurge: "25%"
-      maxUnavailable: 0
+    canary:
+      steps: []

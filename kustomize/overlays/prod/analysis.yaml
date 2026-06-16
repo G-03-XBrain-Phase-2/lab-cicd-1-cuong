@@ -8,6 +8,7 @@ spec:
   metrics:
     - name: error-rate
       interval: 30s
+      count: 3 # Chạy 3 lần để tránh chạy vô tận
       successCondition: result[0] < 0.05 # Lỗi 5xx phải dưới 5%
       failureLimit: 2
       provider:
