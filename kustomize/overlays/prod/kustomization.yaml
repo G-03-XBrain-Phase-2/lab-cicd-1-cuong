@@ -13,7 +13,7 @@ configMapGenerator:
       - VERSION="prod-1.0.0"
       - ENVIRONMENT="production"
 generatorOptions:
-  disableNameHash: true
+  disableNameSuffixHash: true
 patches:
 - path: patches.yaml
 images:

@@ -10,7 +10,7 @@ configMapGenerator:
       - VERSION="dev-1.0.0"
       - ENVIRONMENT="dev"
 generatorOptions:
-  disableNameHash: true
+  disableNameSuffixHash: true
 patches:
 - path: patches.yaml
 images:
