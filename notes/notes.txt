@@ -78,3 +78,10 @@ Nhờ sự phân chia này:
 
 Bạn có thể thoải mái push file sealed-secret.yaml lên GitHub công khai (Public Repo) mà không sợ lộ mật khẩu.
 Chỉ có duy nhất cụm Kubernetes chạy Controller chứa Private Key mới có quyền giải mã để sử dụng mật khẩu đó. Laptop của bạn hay GitHub đều không giải mã được.
+
+6. Alertmanager có 3 cái, vậy chúng khác nhau ra sao ?
+-  Helm Values của kube-prometheus-stack
+- cấu hình secret alertmanager-prometheus-kube-prometheus-alertmanager trong namespace monitoring
+- AlertmanagerConfig
+
+7. Làm sao cái alerts.yaml và kube-prometheus-stack.yaml, nhận diện được nhau ?

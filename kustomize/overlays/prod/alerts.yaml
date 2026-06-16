@@ -1,0 +1,44 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: prometheus-canary-demo-slo-alerts
+  labels:
+    role: alert-rules
+    release: prometheus # Label này phải trùng với Helm release Prometheus của bạn để nó tự nạp rules
+spec:
+  groups:
+    - name: prometheus-canary-demo-burn-rate
+      rules:
+        # Cảnh báo 1: Burn rate cực nhanh (Tiêu thụ sạch ngân sách lỗi trong 50 giờ)
+        # 1-hour window: Burn rate > 14.4 (Lỗi > 7.2% trong 1 giờ)
+        - alert: HttpErrorBudgetBurnRateRapid
+          expr: |
+            (
+              sum(rate(http_request_duration_seconds_count{code=~"5.*"}[1h]))
+              /
+              (sum(rate(http_request_duration_seconds_count[1h])) + 0.001)
+            ) > 0.072
+          for: 2m
+          labels:
+            severity: critical
+            tier: app
+          annotations:
+            summary: "Error Budget Burn Rate cực cao (Burn Rate > 14.4)"
+            description: "Dịch vụ đang tiêu thụ ngân sách lỗi với tốc độ nguy hiểm. Tỷ lệ lỗi hiện tại là {{ $value | humanizePercentage }}."
+
+        # Cảnh báo 2: Burn rate chậm hơn nhưng liên tục (Tiêu thụ sạch ngân sách lỗi trong 120 giờ)
+        # 6-hour window: Burn rate > 6 (Lỗi > 3% liên tục trong 6 giờ)
+        - alert: HttpErrorBudgetBurnRateSlow
+          expr: |
+            (
+              sum(rate(http_request_duration_seconds_count{code=~"5.*"}[6h]))
+              /
+              (sum(rate(http_request_duration_seconds_count[6h])) + 0.001)
+            ) > 0.03
+          for: 15m
+          labels:
+            severity: warning
+            tier: app
+          annotations:
+            summary: "Error Budget Burn Rate tăng liên tục (Burn Rate > 6)"
+            description: "Dịch vụ đang có lỗi rò rỉ âm ỉ kéo dài. Tỷ lệ lỗi trong 6 giờ qua là {{ $value | humanizePercentage }}."
