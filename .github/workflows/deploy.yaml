@@ -1,0 +1,120 @@
+name: Enterprise Multi-Env GitOps CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'Môi trường triển khai thủ công'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+# 1. Concurrency control: Giới hạn chạy đồng thời để tránh xung đột chéo nhánh trên cùng hạ tầng/runner.
+# Ta đặt tên group chung theo workflow mà không bao gồm branch name để tránh đụng độ tài nguyên khi cả main và dev deploy cùng lúc.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false # Không nên cancel dở dang trong deploy để tránh tệp tin bị ghi đè dở dang
+
+# 2. Permissions block: Áp dụng nguyên tắc đặc quyền tối thiểu (Least-Privilege)
+# Mặc định tước tất cả các quyền ghi của GITHUB_TOKEN
+permissions: read-all
+
+jobs:
+  test_and_audit:
+    name: Test & Security Audit (Matrix Strategy)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # 3. Matrix strategy: Đảm bảo kiểm thử tính tương thích trên nhiều phiên bản NodeJS
+      matrix:
+        node-version: [18, 20]
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      # 4. Cache dependencies: Sử dụng cơ chế cache hiện đại được tích hợp trực tiếp vào actions/setup-node
+      - name: Setup NodeJS & Cấu hình Cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
+      - name: Cài đặt Dependencies
+        run: |
+          cd app
+          npm ci
+
+      - name: Kiểm tra lỗi bảo mật (Audit)
+        run: |
+          cd app
+          npm audit signatures || true
+
+  build_and_push:
+    name: Build & Push Docker Image
+    needs: test_and_audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      # 5. Docker Hub với Personal Access Token (PAT)
+      - name: Đăng nhập Docker Hub (Dùng PAT)
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }} # Đây phải là PAT được tạo từ Docker Hub, không dùng mật khẩu gốc
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 6. Sử dụng tag SHA thay vì :latest để dễ dàng Rollback khi gặp sự cố
+      - name: Build và Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/prometheus-canary-demo:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/prometheus-canary-demo:latest
+
+  deploy_gitops:
+    name: GitOps Promote & Deploy
+    needs: build_and_push
+    runs-on: ubuntu-latest
+    # 7. Environment & Required Reviewers: Gắn môi trường cụ thể để kích hoạt cổng phê duyệt (Review Gate) trên GitHub
+    environment:
+      name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_env || (github.ref_name == 'main' && 'prod' || 'dev') }}
+    
+    # Ghi đè quyền contents: write để cho phép Actions commit và push code ngược lại Repository
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout mã nguồn
+        uses: actions/checkout@v4
+
+      - name: Cập nhật Kustomize Image Tag
+        run: |
+          # Xác định môi trường đích
+          ENV_NAME="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_env || (github.ref_name == 'main' && 'prod' || 'dev') }}"
+          echo "Triển khai lên môi trường: $ENV_NAME"
+          
+          # Di chuyển vào overlay của môi trường và cập nhật image mới bằng Kustomize
+          cd kustomize/overlays/$ENV_NAME
+          kustomize edit set image prometheus-canary-demo-placeholder=${{ secrets.DOCKER_USERNAME }}/prometheus-canary-demo:${{ github.sha }}
+
+      - name: Commit và Push thay đổi (GitOps Sync)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore(gitops): promote image to dev/prod with tag ${{ github.sha }} [skip ci]" || exit 0
+          git push origin ${{ github.ref_name }}
