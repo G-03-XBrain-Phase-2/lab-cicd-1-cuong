@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/G-03-XBrain-Phase-2/lab-cicd-1-cuong'
-    targetRevision: main
+    targetRevision: HEAD
     path: kustomize/overlays/prod # Điểm đến thư mục prod
   destination:
     server: 'https://kubernetes.default.svc'
