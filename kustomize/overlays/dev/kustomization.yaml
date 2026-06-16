@@ -4,11 +4,13 @@ resources:
 - ../../base
 # Tự động sinh ConfigMap cho Dev
 configMapGenerator:
-- behavior: create
-  literals:
-  - VERSION="dev-1.0.0"
-  - ENVIRONMENT="dev"
-  name: app-config
+  - name: app-config
+    behavior: create
+    literals:
+      - VERSION="dev-1.0.0"
+      - ENVIRONMENT="dev"
+generatorOptions:
+  disableNameHash: true
 patches:
 - path: patches.yaml
 images:

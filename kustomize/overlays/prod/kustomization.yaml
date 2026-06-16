@@ -1,16 +1,22 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../base
-  - services.yaml
-  - analysis.yaml
-  - alerts.yaml
-  - sealed-secret.yaml # Được sinh ra từ bước SealedSecrets ở Phần 2
+- ../../base
+- services.yaml
+- analysis.yaml
+- alerts.yaml
+- sealed-secret.yaml
 configMapGenerator:
   - name: app-config
     behavior: create
     literals:
       - VERSION="prod-1.0.0"
       - ENVIRONMENT="production"
+generatorOptions:
+  disableNameHash: true
 patches:
-  - path: patches.yaml
+- path: patches.yaml
+images:
+- name: prometheus-canary-demo-placeholder
+  newName: manhcuong139/prometheus-canary-demo
+  newTag: 06fa47bbde963fa998bfbfb12bcceb1deddfff74
