@@ -13,6 +13,6 @@ spec:
       failureLimit: 2
       provider:
         prometheus:
-          address: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090 # Thay bằng DNS Prometheus của bạn
+          address: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090 # Thay bằng DNS Prometheus của bạn
           query: |
             sum(rate(http_request_duration_seconds_count{code=~"5.*"}[1m])) or vector(0)

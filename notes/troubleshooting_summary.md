@@ -1,13 +1,13 @@
-# Nhật Ký Sửa Lỗi (Troubleshooting & Bug Fix Log)
+# Nhật Ký Sửa Lỗi Hạ Tầng & Triển Khai (Infrastructure & Deployment Troubleshooting Log)
 
-Tài liệu này tổng hợp lại toàn bộ các lỗi cấu hình K8s, Kustomize và ArgoCD chúng ta đã gặp trong quá trình cài đặt và cách khắc phục chi tiết để bạn dễ dàng lưu trữ và tra cứu sau này.
+Tài liệu này tổng hợp lại toàn bộ các lỗi liên quan đến cấu hình Kubernetes, Kustomize, ArgoCD và Sealed Secrets mà chúng ta đã gặp trong quá trình cài đặt, cùng với nguyên nhân và giải pháp khắc phục chi tiết.
 
 ---
 
 ## 1. Lỗi Cấu Hình Khởi Tạo Application (`strict decoding error`)
 
 ### ❌ Triệu chứng:
-Khi chạy lệnh `kubectl apply -f argo-app-dev.yaml` hoặc `argo-app-prod.yaml`, hệ thống báo lỗi BadRequest:
+Khi chạy lệnh `kubectl apply` cho file Application (`argo-app-dev.yaml` hoặc `argo-app-prod.yaml`), hệ thống báo lỗi BadRequest:
 ```text
 Application in version "v1alpha1" cannot be handled as a Application: strict decoding error: unknown field "spec.syncPolicy.createNamespace"
 ```
@@ -42,7 +42,7 @@ Unable to load data: revision HEAD must be resolved
 ```
 
 ### 🔍 Nguyên nhân:
-Do cơ chế **lưu bộ nhớ đệm (Cache)** của ArgoCD. Nếu bạn apply file Application lên cụm K8s lần đầu tiên lúc kho Git GitHub chưa được đẩy code lên hoặc cấu hình đường dẫn bị sai, ArgoCD sẽ lưu lại trạng thái lỗi kết nối này trong vòng 3 phút. Kể cả sau khi bạn đã sửa đúng file và push lên Git, ArgoCD vẫn đọc cache cũ và báo lỗi.
+Do cơ chế **lưu bộ nhớ đệm (Cache)** của ArgoCD. Khi file Application được apply lần đầu tiên lúc kho Git GitHub chưa có code hoặc chưa cấu hình đúng, ArgoCD sẽ cache lại lỗi kết nối đó trong 3 phút. Kể cả sau khi bạn đã sửa đúng file và push lên Git, ArgoCD vẫn đọc cache cũ và báo lỗi.
 
 ### 🛠️ Cách khắc phục:
 1. Sửa lại đường dẫn `repoURL` cho chuẩn (thêm đuôi `.git` cho an toàn) và chỉ định cụ thể nhánh chính là `main`:
@@ -131,3 +131,73 @@ Bổ sung tham số `count` để giới hạn số lần thực thi của tiế
       count: 3 # Đo đạc 3 lần (tổng cộng 1.5 phút) rồi dừng và đưa ra kết quả
       successCondition: result[0] < 0.05
 ```
+
+---
+
+## 6. Lỗi Cú Pháp Tắt Băm ConfigMap Kustomize (`unknown field "disableNameHash"`)
+
+### ❌ Triệu chứng:
+Khi chạy Kustomize build trong pipeline hoặc trên máy, bộ biên dịch báo lỗi:
+```text
+invalid Kustomization: json: unknown field "disableNameHash"
+```
+
+### 🔍 Nguyên nhân:
+Trong cấu hình Kustomize, từ khóa đúng để vô hiệu hóa việc sinh mã băm hậu tố cho tên ConfigMap/Secret là **`disableNameSuffixHash`** chứ không phải `disableNameHash` (thiếu từ `Suffix`).
+
+### 🛠️ Cách khắc phục:
+Cập nhật đúng từ khóa trong các file `kustomization.yaml`:
+```yaml
+# Thay vì:
+# generatorOptions:
+#   disableNameHash: true
+
+# Sửa thành:
+generatorOptions:
+  disableNameSuffixHash: true
+```
+
+---
+
+## 7. Lỗi Sealed Secret Sai Namespace (`secret "db-secret" not found` trên Prod)
+
+### ❌ Triệu chứng:
+Ứng dụng trên môi trường `prod` báo lỗi `secret "db-secret" not found` mặc dù file `sealed-secret.yaml` đã được khai báo và deploy thành công trên cụm.
+
+### 🔍 Nguyên nhân:
+Trong file `sealed-secret.yaml` bị gán cứng trường `namespace: default` (do file `secret-raw.yaml` ban đầu được tạo với namespace default). Dẫn đến việc Secret sau khi giải mã bị đẩy vào namespace `default`, trong khi Pod Rollout của môi trường prod lại tìm kiếm Secret trong namespace `prod`.
+
+> [!CAUTION]
+> Một Sealed Secret được mã hóa đi kèm chữ ký xác thực gán chặt với Tên và Namespace. Do đó bạn **không thể** sửa bằng tay trường `namespace` trong file `sealed-secret.yaml` (sẽ gây lỗi giải mã).
+
+### 🛠️ Cách khắc phục:
+Bắt buộc phải mã hóa lại Secret bằng lệnh `kubeseal` cho đúng namespace:
+1. Tạo lại file `secret-raw.yaml` với metadata chỉ định đúng namespace `prod`.
+2. Chạy lại lệnh mã hóa `kubeseal` để tạo ra file `sealed-secret.yaml` mới.
+3. Xóa file raw và push file `sealed-secret.yaml` mới lên GitHub.
+
+---
+
+## 8. Lỗi Phân Tích Lỗi Canary Thất Bại Do Sai DNS Prometheus (`no such host` ở AnalysisRun)
+
+### ❌ Triệu chứng:
+Ứng dụng trên môi trường `prod` bị báo lỗi `Degraded` trong quá trình deploy Canary, với thông báo lỗi từ `AnalysisRun`:
+```text
+dial tcp: lookup prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local on 10.96.0.10:53: no such host
+```
+
+### 🔍 Nguyên nhân:
+Địa chỉ DNS của Prometheus được cấu hình cứng trong file `analysis.yaml` không trùng khớp với tên Service thực tế chạy trong cụm K8s.
+*   Địa chỉ cấu hình: `prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local`
+*   Địa chỉ thực tế (do tên Helm Release của bạn là `kube-prometheus-stack`): `kube-prometheus-stack-prometheus.monitoring.svc.cluster.local`
+
+### 🛠️ Cách khắc phục:
+Chỉnh sửa lại trường `address` trong file `kustomize/overlays/prod/analysis.yaml` để trỏ đúng tên Service thực tế:
+```yaml
+# Thay vì:
+# address: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090
+
+# Sửa thành:
+address: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+```
+
