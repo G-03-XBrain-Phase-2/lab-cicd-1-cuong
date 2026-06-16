@@ -7,11 +7,13 @@ resources:
 - alerts.yaml
 - sealed-secret.yaml
 configMapGenerator:
-- behavior: create
-  literals:
-  - VERSION="prod-1.0.0"
-  - ENVIRONMENT="production"
-  name: app-config
+  - name: app-config
+    behavior: create
+    literals:
+      - VERSION="prod-1.0.0"
+      - ENVIRONMENT="production"
+generatorOptions:
+  disableNameHash: true
 patches:
 - path: patches.yaml
 images:

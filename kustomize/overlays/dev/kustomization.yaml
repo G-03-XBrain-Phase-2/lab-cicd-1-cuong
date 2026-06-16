@@ -9,5 +9,7 @@ configMapGenerator:
     literals:
       - VERSION="dev-1.0.0"
       - ENVIRONMENT="dev"
+generatorOptions:
+  disableNameHash: true
 patches:
   - path: patches.yaml
