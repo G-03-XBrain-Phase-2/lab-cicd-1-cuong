@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+# Tự động sinh ConfigMap cho Dev
+configMapGenerator:
+  - name: app-config
+    behavior: create
+    literals:
+      - VERSION="dev-1.0.0"
+      - ENVIRONMENT="dev"
+patches:
+  - path: patches.yaml

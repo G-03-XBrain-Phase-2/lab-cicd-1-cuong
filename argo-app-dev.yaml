@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: canary-demo-dev
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/<your-username>/<your-repo>.git'
+    targetRevision: dev
+    path: kustomize/overlays/dev # Điểm đến thư mục dev
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: dev # Deploy vào namespace dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    createNamespace: true

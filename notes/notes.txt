@@ -1,0 +1,80 @@
+1. Rollout khác gì với Deployment ?
+- Mặc dù tài nguyên Deployment mặc định của Kubernetes rất tốt, nhưng nó chỉ hỗ trợ chiến lược cập nhật cơ bản là RollingUpdate (thay thế dần Pod cũ bằng Pod mới). Cách này có một số hạn chế lớn trong môi trường Production:
+Không thể kiểm soát lưu lượng truy cập (ví dụ: chỉ cho 5% người dùng dùng thử bản mới).
+Không có tính năng tự động phân tích độ ổn định để tự động rút lui (Auto-Rollback) khi bản mới bị lỗi HTTP 500 hay phản hồi chậm.
+Rollout ra đời để thay thế hoàn toàn Deployment, mang lại khả năng triển khai ứng dụng an toàn và thông minh hơn nhờ tích hợp chặt chẽ với các công cụ giám sát (như Prometheus, Grafana, Datadog) để tự động hóa quá trình xác minh phiên bản mới.
+
+2. Có bao nhiêu chiến lược triển khai (loại) chính trong Rollout?
+Khi cấu hình kind: Rollout, bạn có 2 chiến lược triển khai chính ở phần spec.strategy:
+
+🥇 Loại 1: Canary (Triển khai kiểu "Chim hoàng yến") - Đây là loại đang dùng trong bài Lab
+Cách hoạt động: Chia nhỏ lưu lượng truy cập (traffic) của khách hàng thành nhiều bước để hướng tới bản mới. Ví dụ:
+Bước 1: Chuyển 10% traffic sang bản mới (Canary), 90% vẫn ở bản cũ (Stable).
+Bước 2: Tạm dừng 10 phút để theo dõi hoặc chạy phân tích lỗi.
+Bước 3: Tăng lên 50% traffic.
+Bước 4: Nếu mọi thứ tốt đẹp, chuyển 100% traffic và thay thế hoàn toàn bản cũ.
+Ưu điểm: Giảm thiểu tối đa phạm vi ảnh hưởng (Blast Radius) nếu bản cập nhật có lỗi nghiêm trọng.
+🥈 Loại 2: Blue-Green (Triển khai Xanh - Đỏ)
+Cách hoạt động: Chạy song song hoàn toàn 2 phiên bản ứng dụng độc lập:
+Môi trường Blue (Stable): Đang chạy thực tế phục vụ 100% người dùng.
+Môi trường Green (New/Preview): Bản code mới được deploy lên nhưng chưa nhận traffic thực tế.
+Sau khi chạy các bài test tự động trên môi trường Green đạt yêu cầu, Argo Rollout sẽ chuyển hướng (switch) 100% traffic từ Blue sang Green lập tức thông qua việc thay đổi Service Selector.
+Ưu điểm: Rollback về bản cũ gần như ngay lập tức (instant) nếu bản mới phát sinh lỗi sau khi chuyển đổi.
+
+3. file 'kustomization.yaml' dùng để làm gì ? Và nó giải quyết vấn đề gì ?
+
+4.  " patches:
+       - path: patches.yaml"  2 dòng này nghĩa là gì ?
+
+Hai dòng này trong Kustomize định nghĩa việc áp dụng các tệp tin ghi đè (patches) để thay đổi cấu hình gốc (Base) cho phù hợp với môi trường Development (dev).
+
+Chi tiết ý nghĩa:
+
+patches:: Đây là chỉ thị yêu cầu Kustomize: "Hãy lấy các tài nguyên gốc trong mục resources (ở đây là từ thư mục ../../base), sau đó sửa đổi hoặc chèn thêm các thuộc tính mới vào các tài nguyên đó dựa trên danh sách dưới đây".
+- path: patches.yaml: Đường dẫn tới file chứa nội dung ghi đè (nằm cùng thư mục với file kustomization.yaml này).
+Cách hoạt động thực tế của Patch:
+Kustomize đọc file rollout.yaml gốc ở thư mục base và thấy cấu hình ban đầu.
+Sau đó, nó đọc tiếp file patches.yaml ở thư mục dev/.
+Nó tìm tài nguyên nào có cùng apiVersion, kind, và metadata.name (ở đây là kind: Rollout tên prometheus-canary-demo).
+Kustomize sẽ lấy các giá trị trong patches.yaml để ghi đè (hoặc bổ sung) vào file gốc. Cụ thể ở đây:
+File gốc không có cấu hình strategy hoặc cấu hình mặc định khác.
+File patch ở dev yêu cầu thiết lập strategy là rollingUpdate và xóa cấu hình canary (bằng cách gán canary: null).
+Kết quả sau khi Kustomize xử lý: Bạn sẽ có một tài nguyên Rollout hoàn chỉnh dành riêng cho môi trường Dev chạy dưới dạng RollingUpdate thông thường chứ không chạy Canary để tiết kiệm tài nguyên.
+
+5. Bitnami Sealed Secret và kubeseal khác nhau ra sao ?
+Thực chất, Bitnami Sealed Secrets (Controller) và kubeseal CLI hoạt động theo mô hình Khóa bất đối xứng (Asymmetric Cryptography) – giống như cách hoạt động của SSH Key (gồm Public Key và Private Key).
+
+Nhiệm vụ của chúng hoàn toàn khác nhau và được phân chia rõ ràng giữa Máy cá nhân của bạn (Client) và Cụm Kubernetes (Server):
+
+1. kubeseal CLI (Chỉ dùng để MÃ HÓA trên máy cá nhân)
+Vị trí: Cài trên laptop của bạn (qua Homebrew).
+Nhiệm vụ: Chỉ có duy nhất một chiều là Mã hóa (Encrypt).
+Cách hoạt động:
+Khi bạn chạy lệnh kubeseal, nó sẽ kết nối vào cụm K8s để xin Public Key (Khóa công khai) từ Controller.
+Nó dùng Public Key này để mã hóa file mật khẩu rõ (secret-raw.yaml) thành file đã mã hóa (sealed-secret.yaml).
+Đặc điểm bảo mật: Vì kubeseal chỉ giữ Public Key, nó không có cách nào giải mã ngược lại file đã mã hóa. Dù hacker có hack được laptop của bạn hay lấy được file sealed-secret.yaml trên GitHub, họ cũng không thể giải mã để xem mật khẩu gốc.
+2. Sealed Secrets Controller (Chỉ dùng để GIẢI MÃ trên cụm Kubernetes)
+Vị trí: Chạy như một ứng dụng (Pod) bên trong cụm K8s (thường ở namespace kube-system).
+Nhiệm vụ: Chỉ có nhiệm vụ Giải mã (Decrypt).
+Cách hoạt động:
+Khi bạn khởi tạo Controller lần đầu tiên, nó sẽ tự động sinh ra một cặp khóa (Public/Private Key) và cất giấu Private Key (Khóa bí mật) cực kỳ an toàn bên trong cụm K8s.
+Khi ArgoCD đẩy file sealed-secret.yaml đã mã hóa lên cụm, Controller sẽ phát hiện ra tài nguyên này.
+Nó dùng Private Key duy nhất mà chỉ nó có để giải mã dữ liệu bên trong SealedSecret, sau đó tự động tạo ra một file Secret thông thường (ví dụ: db-secret) để ứng dụng của bạn đọc.
+Tóm tắt luồng hoạt động (Workflow):
+text
+[Laptop của bạn]                                [GitHub / GitOps]              [Cụm Kubernetes]
+secret-raw.yaml (Mật khẩu rõ)
+      │
+      ▼
+(Chạy lệnh kubeseal) ──> Dùng Public Key ──> sealed-secret.yaml ──> Push lên Git ──> Được deploy lên K8s
+                                                                                           │
+                                                                                           ▼
+                                                                                   Sealed Secrets Controller
+                                                                                           │ (Dùng Private Key giải mã)
+                                                                                           ▼
+                                                                                   Tự sinh ra K8s Secret gốc
+                                                                                   (Ứng dụng NodeJS đọc trực tiếp)
+Nhờ sự phân chia này:
+
+Bạn có thể thoải mái push file sealed-secret.yaml lên GitHub công khai (Public Repo) mà không sợ lộ mật khẩu.
+Chỉ có duy nhất cụm Kubernetes chạy Controller chứa Private Key mới có quyền giải mã để sử dụng mật khẩu đó. Laptop của bạn hay GitHub đều không giải mã được.

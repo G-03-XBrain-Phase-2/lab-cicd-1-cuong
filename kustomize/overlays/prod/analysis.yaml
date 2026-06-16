@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: prometheus-error-rate-analysis
+spec:
+  args:
+    - name: service-name
+  metrics:
+    - name: error-rate
+      interval: 30s
+      successCondition: result[0] < 0.05 # Lỗi 5xx phải dưới 5%
+      failureLimit: 2
+      provider:
+        prometheus:
+          address: http://prometheus-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090 # Thay bằng DNS Prometheus của bạn
+          query: |
+            sum(rate(http_request_duration_seconds_count{code=~"5.*"}[1m])) or vector(0)

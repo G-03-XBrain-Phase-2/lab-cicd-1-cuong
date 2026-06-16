@@ -1,0 +1,11 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: prometheus-canary-demo
+spec:
+  replicas: 1
+  strategy:
+    canary: null # Xóa cấu hình Canary
+    rollingUpdate:
+      maxSurge: "25%"
+      maxUnavailable: 0

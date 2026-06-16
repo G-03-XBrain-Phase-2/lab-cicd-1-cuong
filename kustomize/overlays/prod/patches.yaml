@@ -1,0 +1,48 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: prometheus-canary-demo
+spec:
+  replicas: 3
+  strategy:
+    canary:
+      stableService: prometheus-canary-demo-stable
+      canaryService: prometheus-canary-demo-canary
+      steps:
+        - setWeight: 20
+        - pause: { duration: 1m }
+        - setWeight: 50
+        - analysis:
+            templates:
+              - templateName: prometheus-error-rate-analysis
+            args:
+              - name: service-name
+                value: prometheus-canary-demo-canary
+        - pause: { duration: 2m }
+        - setWeight: 100
+---
+# Tạo thêm Service Stable riêng cho Prod
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-canary-demo-stable
+spec:
+  ports:
+    - port: 80
+      targetPort: 3000
+      name: http
+  selector:
+    app: prometheus-canary-demo
+---
+# Tạo thêm Service Canary riêng cho Prod
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-canary-demo-canary
+spec:
+  ports:
+    - port: 80
+      targetPort: 3000
+      name: http
+  selector:
+    app: prometheus-canary-demo

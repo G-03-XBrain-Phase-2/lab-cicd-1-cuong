@@ -1,0 +1,15 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - analysis.yaml
+  - alerts.yaml
+  - sealed-secret.yaml # Được sinh ra từ bước SealedSecrets ở Phần 2
+configMapGenerator:
+  - name: app-config
+    behavior: create
+    literals:
+      - VERSION="prod-1.0.0"
+      - ENVIRONMENT="production"
+patches:
+  - path: patches.yaml

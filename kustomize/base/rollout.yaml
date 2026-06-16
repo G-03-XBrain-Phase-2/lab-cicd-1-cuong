@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: prometheus-canary-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-canary-demo
+  template:
+    metadata:
+      labels:
+        app: prometheus-canary-demo
+    spec:
+      containers:
+        - name: app
+          image: prometheus-canary-demo-placeholder:latest
+          ports:
+            - containerPort: 3000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: app-config
+          env:
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DATABASE_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
