@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/<your-username>/<your-repo>.git'
+    repoURL: 'https://github.com/G-03-XBrain-Phase-2/lab-cicd-1-cuong'
     targetRevision: dev
     path: kustomize/overlays/dev # Điểm đến thư mục dev
   destination:
